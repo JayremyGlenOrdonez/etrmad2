@@ -1,5 +1,7 @@
-
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // Generated ng flutterfire configure
+
 import 'package:myapp/_screen_controls.dart';
 import 'package:myapp/services/notification_helper.dart';
 
@@ -8,10 +10,17 @@ import 'package:timezone/timezone.dart' as tz;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Timezone setup
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Manila'));
 
+  // Initialize notification helper
   await NotificationHelper.init();
+
   runApp(const EtrMad());
 }
 

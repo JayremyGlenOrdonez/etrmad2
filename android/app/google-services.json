@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "520432585419",
+    "project_id": "etrmad2",
+    "storage_bucket": "etrmad2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:520432585419:android:ffa911a256775e7b03e94e",
+        "android_client_info": {
+          "package_name": "com.example.myapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQn9PKOuTS63CABu-2OnqyJlsGnt8tdEA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
