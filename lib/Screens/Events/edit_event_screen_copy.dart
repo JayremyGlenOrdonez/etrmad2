@@ -5,15 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:myapp/Database/db_helper.dart';
 import 'package:myapp/Styles/custom_colors.dart';
 import 'package:myapp/Styles/fonts.dart';
 import 'package:myapp/controller/event_controller.dart';
+import 'package:myapp/models/event_model.dart';
 import 'package:myapp/models/item_model.dart';
+import 'package:myapp/services/notification_helper.dart';
 import 'package:myapp/utils/custom_tools.dart';
 import 'package:myapp/utils/widgets.dart';
-import '../../Database/db_helper.dart';
-import '../../models/event_model.dart';
-import '../../services/notification_helper.dart';
 
 class EditEventScreen extends StatefulWidget {
   EditEventScreen({super.key, required this.event});
@@ -36,7 +36,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
     packingDatetime = widget.event.packingDatetime;
     retrieveDatetime = widget.event.retrieveDatetime;
 
-    items = widget.event.items;
+    // Deep copy the list to avoid modifying the original list passed in widget.event
+    // This is important if you want to be able to revert changes or if the original
+    // object's list is mutable and used elsewhere.
+    items = List<Items>.from(widget.event.items);
 
     //
     if (widget.event.image != null) {
@@ -49,10 +52,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
     }
 
     //
-
     //December 5, 2023 | 5:00 PM
-    eventDateTimeController.text =
-        DateFormat('MMMM d, yyyy | h:mm a').format(selectedDateTime!);
+    eventDateTimeController.text = DateFormat(
+      'MMMM d, yyyy | h:mm a',
+    ).format(selectedDateTime!);
     eventPackingDateTimeController.text = packingDatetime == null
         ? ""
         : DateFormat('MMMM d, yyyy | h:mm a').format(packingDatetime!);
@@ -62,7 +65,6 @@ class _EditEventScreenState extends State<EditEventScreen> {
   }
 
   //
-
   Size size = const Size(0, 0);
 
   File? imageFile;
@@ -84,7 +86,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
   final itemQuantityController = TextEditingController();
 
-  List<Items> items = [];
+  List<Items> items = []; // This will be initialized in initState
 
   DateTime? selectedDateTime;
   DateTime? packingDatetime;
@@ -108,10 +110,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
         title: ShaderMask(
           shaderCallback: (Rect bounds) {
             return const LinearGradient(
-              colors: [
-                primaryColor,
-                secondaryColor,
-              ],
+              colors: [primaryColor, secondaryColor],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ).createShader(bounds);
@@ -139,106 +138,142 @@ class _EditEventScreenState extends State<EditEventScreen> {
                   eventDescriptionController.text.isEmpty ||
                   eventNameController.text.isEmpty) {
                 showDialog(
-                    context: context,
-                    builder: (context) => failedDialog(context,
-                        message: 'Please fill all the fields'));
+                  context: context,
+                  builder: (context) => failedDialog(
+                    context,
+                    message: 'Please fill all the fields',
+                  ),
+                );
                 return;
               }
 
               if (selectedDateTime == null) {
                 showDialog(
-                    context: context,
-                    builder: (context) => failedDialog(context,
-                        message: 'Please select event date and time'));
+                  context: context,
+                  builder: (context) => failedDialog(
+                    context,
+                    message: 'Please select event date and time',
+                  ),
+                );
                 return;
               }
 
               if (packingDatetime == null && isPackingReminder) {
                 showDialog(
-                    context: context,
-                    builder: (context) => failedDialog(context,
-                        message: 'Please select packing date and time'));
+                  context: context,
+                  builder: (context) => failedDialog(
+                    context,
+                    message: 'Please select packing date and time',
+                  ),
+                );
                 return;
               }
 
               if (retrieveDatetime == null && isRetrieveReminder) {
                 showDialog(
-                    context: context,
-                    builder: (context) => failedDialog(context,
-                        message: 'Please select retrieve date and time'));
+                  context: context,
+                  builder: (context) => failedDialog(
+                    context,
+                    message: 'Please select retrieve date and time',
+                  ),
+                );
                 return;
               }
 
               if (items.isEmpty) {
                 showDialog(
-                    context: context,
-                    builder: (context) => failedDialog(context,
-                        message: 'Please add at least one items'));
+                  context: context,
+                  builder: (context) => failedDialog(
+                    context,
+                    message: 'Please add at least one items',
+                  ),
+                );
                 return;
               }
 
-              var database = DbHelper.instance;
+              // Use FirebaseDbHelper.instance instead of DbHelper.instance
+              var database = FirebaseDbHelper.instance; // <--- UPDATED INSTANCE
 
-              var eventDateTime = DateTime(
-                selectedDateTime!.year,
-                selectedDateTime!.month,
-                selectedDateTime!.day,
-                selectedDateTime!.hour,
-                selectedDateTime!.minute,
-              );
+              // eventDateTime is already selectedDateTime, no need to recreate
+              // log(eventDateTime.toString()); // This log can remain
 
-              log(eventDateTime.toString());
-
-              Event event = Event(
+              Event eventToUpdate = Event(
+                // Use widget.event.id for the existing document ID
                 id: widget.event.id,
                 name: eventNameController.text,
                 venue: eventVenueController.text,
                 description: eventDescriptionController.text,
-                dateTime: widget.event.dateTime,
+                // Use the updated selectedDateTime from the UI
+                dateTime: selectedDateTime!,
                 packingDatetime: packingDatetime,
                 retrieveDatetime: retrieveDatetime,
                 isPackingReminder: isPackingReminder,
                 isRetrieveReminder: isRetrieveReminder,
-                image: imageFile,
-                status: widget.event.status,
+                image:
+                    imageFile, // Remember to consider Firebase Storage for images
+                status: widget
+                    .event
+                    .status, // Retain original status or update as needed
                 items: items,
               );
 
-              // //
-              var eventAdded = await database.updateEvent(event);
+              //
+              var eventUpdated = await database.updateEvent(
+                eventToUpdate,
+              ); // <--- Use eventToUpdate
 
-              if (eventAdded.id == 0) {
+              // Check if eventUpdated.id is null or empty for Firebase success check
+              if (eventUpdated.id == null || eventUpdated.id!.isEmpty) {
+                // <--- UPDATED SUCCESS CHECK
+                showDialog(
+                  context: context,
+                  builder: (context) =>
+                      failedDialog(context, message: 'Failed to update event'),
+                );
                 return;
               }
 
-              if (eventAdded.isPackingReminder) {
-                var datetime = eventAdded.packingDatetime!;
+              // Re-schedule notifications if reminders are active
+              // It's good practice to cancel existing notifications and then schedule new ones
+              // to ensure they reflect the updated times/details.
+              // You might want to get the original event's ID for cancelling if it's stored.
+              // For simplicity, using UniqueKey().hashCode for new notifications.
 
-                //
+              // Cancel existing notifications for this event before re-scheduling if needed
+              // (Requires storing notification IDs, which is outside this snippet's scope)
+              // NotificationHelper.cancelNotification(oldPackingNotificationId);
+              // NotificationHelper.cancelNotification(oldRetrieveNotificationId);
+
+              if (eventUpdated.isPackingReminder) {
+                var datetime = eventUpdated.packingDatetime!;
                 NotificationHelper.scheduleNotification(
-                  id: UniqueKey().hashCode,
+                  id: UniqueKey().hashCode, // New ID for a new notification
                   title: 'Packing Reminder',
-                  body: 'You need to pack items for ${eventAdded.name}',
+                  body: 'You need to pack items for ${eventUpdated.name}',
                   date: datetime,
-                  bigPicture: eventAdded.image?.path,
+                  bigPicture: eventUpdated.image?.path,
                 );
+              } else {
+                // If reminder was turned off, cancel any pending packing notification for this event
+                // (Requires storing notification IDs)
               }
 
-              if (eventAdded.isRetrieveReminder) {
-                var datetime = eventAdded.retrieveDatetime!;
-
-                //
+              if (eventUpdated.isRetrieveReminder) {
+                var datetime = eventUpdated.retrieveDatetime!;
                 NotificationHelper.scheduleNotification(
-                  id: UniqueKey().hashCode,
+                  id: UniqueKey().hashCode, // New ID for a new notification
                   title: 'Retrieve Reminder',
-                  body: 'It is time to retrieve items for ${eventAdded.name}',
+                  body: 'It is time to retrieve items for ${eventUpdated.name}',
                   date: datetime,
-                  bigPicture: eventAdded.image?.path,
+                  bigPicture: eventUpdated.image?.path,
                 );
+              } else {
+                // If reminder was turned off, cancel any pending retrieve notification for this event
+                // (Requires storing notification IDs)
               }
 
               Navigator.of(context).pop();
-              controller.refresh();
+              controller.refresh(); // Refresh the event list after update
             },
           ),
         ],
@@ -258,10 +293,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
             ),
             Expanded(
               child: TabBarView(
-                children: [
-                  eventDetailsForm(context),
-                  itemList(),
-                ],
+                children: [eventDetailsForm(context), itemList()],
               ),
             ),
           ],
@@ -399,49 +431,60 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
                       setState(() {
                         if (itemsController.text.isEmpty ||
-                            itemQuantityController.text.isEmpty) return;
+                            itemQuantityController.text.isEmpty)
+                          return;
 
-                        items.add(Items(
-                          name: itemsController.text,
-                          quantity:
-                              int.parse(itemQuantityController.text.trim()),
-                          isReturned: false,
-                        ));
+                        items.add(
+                          Items(
+                            name: itemsController.text,
+                            quantity: int.parse(
+                              itemQuantityController.text.trim(),
+                            ),
+                            isReturned: false, // Default for new items
+                          ),
+                        );
                         itemsController.clear();
                         itemQuantityController.clear();
                       });
                     },
                     color: primaryColor,
-                    child: const Text('Add',
-                        style: TextStyle(color: Colors.white)),
+                    child: const Text(
+                      'Add',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ),
               ],
             ),
-            ListView.builder(
-              itemCount: items.length,
-              shrinkWrap: true,
-              itemBuilder: (context, index) {
-                return Card(
-                  elevation: 2,
-                  child: ListTile(
-                      title: Text(items[index].name ?? 'N/A'),
+            Expanded(
+              // Wrap ListView.builder with Expanded or a fixed height
+              child: ListView.builder(
+                itemCount: items.length,
+                shrinkWrap: true, // This is fine if within Expanded
+                itemBuilder: (context, index) {
+                  return Card(
+                    elevation: 2,
+                    child: ListTile(
+                      title: Text(
+                        items[index].name,
+                      ), // 'name' is non-nullable now
                       subtitle: Text('${items[index].quantity} Items'),
                       trailing: IconButton(
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                        ),
+                        icon: const Icon(Icons.delete, color: Colors.red),
                         onPressed: () {
                           setState(() {
-                            snackBar(context,
-                                message: '${items[index].name} removed');
+                            snackBar(
+                              context,
+                              message: '${items[index].name} removed',
+                            );
                             items.removeAt(index);
                           });
                         },
-                      )),
-                );
-              },
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -469,17 +512,9 @@ class _EditEventScreenState extends State<EditEventScreen> {
         child: imageFile != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(6.0),
-                child: Image.file(
-                  imageFile!,
-                  fit: BoxFit.cover,
-                ),
+                child: Image.file(imageFile!, fit: BoxFit.cover),
               )
-            : const Center(
-                child: Icon(
-                  Icons.add_a_photo,
-                  color: labelColor,
-                ),
-              ),
+            : const Center(child: Icon(Icons.add_a_photo, color: labelColor)),
       ),
     );
   }
@@ -504,6 +539,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
             onChanged: (value) {
               setState(() {
                 isReminder = value;
+                // If turning off reminder, also turn off sub-reminders and clear dates
                 isPackingReminder = isReminder ? true : false;
                 isRetrieveReminder = false;
                 eventPackingDateTimeController.clear();
@@ -514,10 +550,12 @@ class _EditEventScreenState extends State<EditEventScreen> {
             },
             activeTrackColor: primaryColor,
             trackOutlineWidth: const WidgetStatePropertyAll(0),
-            thumbIcon: WidgetStatePropertyAll(Icon(
-              Icons.notifications,
-              color: isReminder ? secondaryColor : Colors.white,
-            )),
+            thumbIcon: WidgetStatePropertyAll(
+              Icon(
+                Icons.notifications,
+                color: isReminder ? secondaryColor : Colors.white,
+              ),
+            ),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
@@ -533,16 +571,20 @@ class _EditEventScreenState extends State<EditEventScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10.0, vertical: 0),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10.0,
+            vertical: 0,
+          ),
           leading: Icon(
             isPackingReminder
                 ? Icons.notifications_active_outlined
                 : Icons.notifications_off_outlined,
             color: Colors.black,
           ),
-          title: const Text('Remind me to pack all items before the event.',
-              style: TextStyle(color: Colors.black, fontSize: 14)),
+          title: const Text(
+            'Remind me to pack all items before the event.',
+            style: TextStyle(color: Colors.black, fontSize: 14),
+          ),
           trailing: Transform.scale(
             scale: 0.7,
             child: Switch(
@@ -551,7 +593,8 @@ class _EditEventScreenState extends State<EditEventScreen> {
                 setState(() {
                   isPackingReminder = value;
                   if (!isPackingReminder && !isRetrieveReminder) {
-                    isReminder = false;
+                    isReminder =
+                        false; // Turn off main reminder if both sub-reminders are off
                   }
                 });
               },
@@ -570,16 +613,20 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
         //
         ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10.0, vertical: 0),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10.0,
+            vertical: 0,
+          ),
           leading: Icon(
             isRetrieveReminder
                 ? Icons.notifications_active_outlined
                 : Icons.notifications_off_outlined,
             color: Colors.black,
           ),
-          title: const Text('Remind me to retrieve an items after the event.',
-              style: TextStyle(color: Colors.black, fontSize: 14)),
+          title: const Text(
+            'Remind me to retrieve an items after the event.',
+            style: TextStyle(color: Colors.black, fontSize: 14),
+          ),
           trailing: Transform.scale(
             scale: 0.7,
             child: Switch(
@@ -588,7 +635,8 @@ class _EditEventScreenState extends State<EditEventScreen> {
                 setState(() {
                   isRetrieveReminder = value;
                   if (!isPackingReminder && !isRetrieveReminder) {
-                    isReminder = false;
+                    isReminder =
+                        false; // Turn off main reminder if both sub-reminders are off
                   }
                 });
               },
@@ -604,7 +652,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
     );
   }
 
-//REMINDERS DATETIME FORMS
+  //REMINDERS DATETIME FORMS
   Widget packDateTimeForm() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
@@ -674,26 +722,36 @@ class _EditEventScreenState extends State<EditEventScreen> {
     final date = await pickDate(context, initialDate: selectedDateTime);
     if (date == null) return;
 
-    final time = await pickTime(context,
-        initialTime: selectedDateTime == null
-            ? null
-            : TimeOfDay(
-                hour: selectedDateTime!.hour,
-                minute: selectedDateTime!.minute));
+    final time = await pickTime(
+      context,
+      initialTime: selectedDateTime == null
+          ? null
+          : TimeOfDay(
+              hour: selectedDateTime!.hour,
+              minute: selectedDateTime!.minute,
+            ),
+    );
 
     //
     if (time != null) {
       setState(() {
-        selectedDateTime =
-            DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        selectedDateTime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        );
 
         log(selectedDateTime.toString());
         // Format date and time
-        final formattedDate = DateFormat('MMMM dd, yyyy')
-            .format(selectedDateTime!); // Example: November 5, 2023
+        final formattedDate = DateFormat(
+          'MMMM dd, yyyy',
+        ).format(selectedDateTime!); // Example: November 5, 2023
         //
-        final formattedTime =
-            DateFormat('h:mm a').format(selectedDateTime!); // Example: 12:00 AM
+        final formattedTime = DateFormat(
+          'h:mm a',
+        ).format(selectedDateTime!); // Example: 12:00 AM
 
         // Combine formatted date and time
         eventDateTimeController.text = '$formattedDate | $formattedTime';
@@ -706,26 +764,37 @@ class _EditEventScreenState extends State<EditEventScreen> {
     final date = await pickDate(context, initialDate: packingDatetime);
     if (date == null) return;
 
-    final time = await pickTime(context,
-        initialTime: packingDatetime == null
-            ? null
-            : TimeOfDay(
-                hour: packingDatetime!.hour, minute: packingDatetime!.minute));
+    final time = await pickTime(
+      context,
+      initialTime: packingDatetime == null
+          ? null
+          : TimeOfDay(
+              hour: packingDatetime!.hour,
+              minute: packingDatetime!.minute,
+            ),
+    );
 
     //
     if (time != null) {
       setState(() {
-        packingDatetime =
-            DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        packingDatetime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        );
 
         log(packingDatetime.toString());
         // Format date and time
-        final formattedDate = DateFormat('MMMM dd, yyyy')
-            .format(packingDatetime!); // Example: November 5, 2023
+        final formattedDate = DateFormat(
+          'MMMM dd, yyyy',
+        ).format(packingDatetime!); // Example: November 5, 2023
 
         //
-        final formattedTime =
-            DateFormat('h:mm a').format(packingDatetime!); // Example: 12:00 AM
+        final formattedTime = DateFormat(
+          'h:mm a',
+        ).format(packingDatetime!); // Example: 12:00 AM
 
         // Combine formatted date and time
         eventPackingDateTimeController.text = '$formattedDate | $formattedTime';
@@ -738,27 +807,37 @@ class _EditEventScreenState extends State<EditEventScreen> {
     final date = await pickDate(context, initialDate: retrieveDatetime);
     if (date == null) return;
 
-    final time = await pickTime(context,
-        initialTime: retrieveDatetime == null
-            ? null
-            : TimeOfDay(
-                hour: retrieveDatetime!.hour,
-                minute: retrieveDatetime!.minute));
+    final time = await pickTime(
+      context,
+      initialTime: retrieveDatetime == null
+          ? null
+          : TimeOfDay(
+              hour: retrieveDatetime!.hour,
+              minute: retrieveDatetime!.minute,
+            ),
+    );
 
     //
     if (time != null) {
       setState(() {
-        retrieveDatetime =
-            DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        retrieveDatetime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        );
 
         log(retrieveDatetime.toString());
         // Format date and time
-        final formattedDate = DateFormat('MMMM dd, yyyy')
-            .format(retrieveDatetime!); // Example: November 5, 2023
+        final formattedDate = DateFormat(
+          'MMMM dd, yyyy',
+        ).format(retrieveDatetime!); // Example: November 5, 2023
 
         //
-        final formattedTime =
-            DateFormat('h:mm a').format(retrieveDatetime!); // Example: 12:00 AM
+        final formattedTime = DateFormat(
+          'h:mm a',
+        ).format(retrieveDatetime!); // Example: 12:00 AM
 
         // Combine formatted date and time
         eventRetrieveDateTimeController.text =

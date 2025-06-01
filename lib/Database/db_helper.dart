@@ -1,201 +1,301 @@
 import 'dart:developer';
 
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:myapp/models/borrowed_item.dart';
 import 'package:myapp/models/event_model.dart';
-import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
 
+class FirebaseDbHelper {
+  static final FirebaseDbHelper instance = FirebaseDbHelper._();
+  FirebaseDbHelper._();
 
-class DbHelper {
-  static Database? _db;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  static final DbHelper instance = DbHelper._();
+  // Collection names (matching your old table names for conceptual clarity)
+  static const String EVENTS_COLLECTION = 'events';
+  static const String BORROWED_ITEMS_COLLECTION = 'borrowed_items';
 
-  DbHelper._();
+  // Field names (consistent with your old column names)
+  // For Firebase, these are just string constants, not dependent on DbHelper instance.
+  static const String EVENT_ID =
+      'id'; // Firebase will auto-generate document IDs
+  static const String EVENT_NAME = 'name';
+  static const String EVENT_DATE = 'date'; // Will store as String or Timestamp
+  static const String EVENT_TIME =
+      'time'; // Note: Was not used in SQLite table creation.
+  static const String EVENT_DESCRIPTION = 'description';
+  static const String EVENT_STATUS = 'status';
+  static const String EVENT_PACK_REMINDER =
+      'pack_reminder'; // Will store as boolean
+  static const String EVENT_RETRIEVE_REMINDER =
+      'retrieve_reminder'; // Will store as boolean
+  static const String EVENT_PACK_DATE =
+      'pack_date'; // Will store as String or Timestamp
+  static const String EVENT_RETRIEVE_DATE =
+      'retrieve_date'; // Will store as String or Timestamp
+  static const String EVENT_VENUE = 'venue';
+  static const String EVENT_IMAGE =
+      'image'; // Will store as URL (Firebase Storage) or local path
+  static const String EVENT_ITEMS =
+      'items'; // Will store as List<Map<String, dynamic>> (Firestore Array)
+  static const String EVENT_LATITUDE = 'latitude';
+  static const String EVENT_LONGITUDE = 'longitude';
+  static const String EVENT_WEATHER_DETAILS = 'weatherDetails';
 
-  static Future<Database?> get database async {
-    if (_db != null) {
-      return _db;
-    }
-    _db = await instance._openDb();
-    return _db;
-  }
+  static const String BORROWED_ID =
+      'id'; // Firebase will auto-generate document IDs
+  static const String BORROWED_TITLE = 'title';
+  static const String BORROWED_ITEMS =
+      'items'; // Will store as List<Map<String, dynamic>> (Firestore Array)
+  static const String BORROWED_DATE_RETURNED =
+      'dateReturned'; // Will store as String or Timestamp
+  static const String BORROWED_STATUS = 'status';
 
-  String dbName = 'reminense.db';
-  int dbVersion = 1;
+  // ==================== EVENTS OPERATIONS ====================
 
-  //table 1
-  String EVENT_TABLE = 'events';
-  //
-  String EVENT_ID = 'id';
-  String EVENT_NAME = 'name';
-  String EVENT_DATE = 'date';
-  String EVENT_TIME = 'time';
-  String EVENT_DESCRIPTION = 'description';
-  String EVENT_STATUS = 'status';
-
-  String EVENT_PACK_REMINDER = 'pack_reminder';
-  String EVENT_RETRIEVE_REMINDER = 'retrieve_reminder';
-  String EVENT_PACK_DATE = 'pack_date';
-  String EVENT_RETRIEVE_DATE = 'retrieve_date';
-  String EVENT_VENUE = 'venue';
-  String EVENT_IMAGE = 'image';
-  String EVENT_ITEMS = 'items';
-
-  //==================================
-
-  String ITEM_ID = 'id';
-  String ITEM_NAME = 'name';
-  String ITEM_QUANTITY = 'quantity';
-  String ITEM_DESCRIPTION = 'description';
-  String ITEM_IS_RETURNED = 'isReturned';
-
-  //===================================
-
-  String BORROWED_TABLE = 'borrowed_items';
-
-  String BORROWED_ID = 'id';
-  String BORROWED_TITLE = 'title';
-  String BORROWED_ITEMS = 'items';
-  String BORROWED_DATE_RETURNED = 'dateReturned';
-  String BORROWED_STATUS = 'status';
-
-  //OPEN DB
-  Future<Database> _openDb() async {
-    String dbPath = await getDatabasesPath();
-    dbPath = join(dbPath, dbName);
-    // print(dbPath);
-    // deleteDatabase(dbPath);
-    return openDatabase(
-      dbPath,
-      version: dbVersion,
-      onCreate: (db, version) {
-        try {
-          db.execute('''
-          CREATE TABLE $EVENT_TABLE (
-            $EVENT_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-            $EVENT_NAME TEXT NOT NULL,
-            $EVENT_DATE TEXT NOT NULL,
-            $EVENT_DESCRIPTION TEXT,
-            $EVENT_STATUS TEXT NOT NULL,
-            $EVENT_PACK_REMINDER INTEGER NOT NULL,
-            $EVENT_RETRIEVE_REMINDER INTEGER NOT NULL,
-            $EVENT_PACK_DATE TEXT NULL,
-            $EVENT_RETRIEVE_DATE TEXT NULL,
-            $EVENT_VENUE TEXT NULL,
-            $EVENT_IMAGE TEXT NULL,
-            $EVENT_ITEMS TEXT NULL
-          )
-        ''');
-
-          db.execute('''
-          CREATE TABLE $BORROWED_TABLE (
-            $BORROWED_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-            $BORROWED_TITLE TEXT NOT NULL,
-            $BORROWED_ITEMS TEXT NOT NULL,
-            $BORROWED_STATUS TEXT NOT NULL,
-            $BORROWED_DATE_RETURNED TEXT NOT NULL
-          )
-        ''');
-
-          log(name: 'Database', 'Tables Created Successfully');
-        } catch (e) {
-          log(name: 'Database', 'Error Creating Tables: $e');
-        }
-      },
-    );
-  }
-
-  //insert data
+  /// Inserts a new event into Firestore.
+  /// The Event object's `id` field will be populated with the Firestore document ID.
   Future<Event> insertEvent(Event event) async {
-    Database? db = await database;
-    var jsonData = await event.createJsonEvent();
-    var id = await db!.insert(EVENT_TABLE, jsonData);
-    return await getEventId(id);
+    try {
+      log('Inserting event: ${event.toJson()}'); // Debug log
+      final eventData = event.toJson();
+      eventData.remove('latitude'); // Remove latitude before saving
+      eventData.remove('longitude'); // Remove longitude before saving
+      eventData.remove(
+        'weatherDetails',
+      ); // Remove weather details before saving
+      eventData['latitude'] = event.latitude; // Add latitude
+      eventData['longitude'] = event.longitude; // Add longitude
+      eventData['weatherDetails'] = event.weatherDetails; // Add weather details
+      DocumentReference docRef = await _firestore
+          .collection(EVENTS_COLLECTION)
+          .add(eventData);
+
+      DocumentSnapshot snapshot = await docRef.get();
+
+      if (snapshot.exists) {
+        log('Event inserted successfully: ${snapshot.data()}'); // Debug log
+        return Event.fromJson(snapshot.data() as Map<String, dynamic>)
+          ..id = snapshot.id;
+      } else {
+        throw Exception('Failed to retrieve inserted event.');
+      }
+    } catch (e) {
+      log('Error inserting event: $e'); // Debug log
+      rethrow;
+    }
   }
 
-  //FETCH DATA
+  /// Fetches a list of events from Firestore, optionally filtered by status.
   Future<List<Event>> fetchAllEvents({String status = 'All'}) async {
-    Database? db = await database;
-    var data = status == 'All'
-        ? await db!.query(EVENT_TABLE, orderBy: '$EVENT_DATE DESC')
-        : await db!.query(EVENT_TABLE,
-            where: '$EVENT_STATUS = ?',
-            whereArgs: [status],
-            orderBy: '$EVENT_DATE DESC');
+    try {
+      Query query = _firestore.collection(EVENTS_COLLECTION);
 
-    // log(data.toString());
+      if (status != 'All') {
+        query = query.where(EVENT_STATUS, isEqualTo: status);
+      }
+      query = query.orderBy(EVENT_DATE, descending: true);
 
-    List<Event> events = data.map((e) => Event.fromJson(e)).toList();
-    // print(events.length);
-    return events;
+      QuerySnapshot querySnapshot = await query.get();
+
+      return querySnapshot.docs.map((doc) {
+        // Convert each document to an Event object, assigning the document ID.
+        return Event.fromJson(doc.data() as Map<String, dynamic>)..id = doc.id;
+      }).toList();
+    } catch (e) {
+      log('Error fetching events: $e');
+      return []; // Return an empty list on error to prevent app crash
+    }
   }
 
-  //Delete event
-  Future<int> deleteEvent(int id) async {
-    Database? db = await database;
-    return await db!
-        .delete(EVENT_TABLE, where: '$EVENT_ID = ?', whereArgs: [id]);
+  /// Deletes an event from Firestore by its document ID.
+  Future<void> deleteEvent(String id) async {
+    try {
+      await _firestore.collection(EVENTS_COLLECTION).doc(id).delete();
+      log(name: 'Firebase', 'Event deleted with ID: $id');
+    } catch (e) {
+      log(name: 'Firebase', 'Error deleting event with ID $id: $e');
+      rethrow;
+    }
   }
 
-  //Update event
+  /// Updates an existing event in Firestore.
+  /// The Event object must have a non-null `id`.
   Future<Event> updateEvent(Event event) async {
-    print(event.status);
-    Database? db = await database;
-    var jsonData = await event.updateJsonEvent();
-    var id = await db!.update(EVENT_TABLE, jsonData,
-        where: '$EVENT_ID = ?', whereArgs: [event.id]);
+    try {
+      if (event.id == null || event.id!.isEmpty) {
+        throw Exception(
+          'Event ID cannot be null or empty for update operation.',
+        );
+      }
+      // event.toJson() should return a Map<String, dynamic> with updated data.
+      // Firestore will merge updates; fields not present in the map won't be changed.
+      await _firestore
+          .collection(EVENTS_COLLECTION)
+          .doc(event.id!)
+          .update(event.toJson());
 
-    return await getEventId(event.id);
+      // After update, fetch the updated event to return the complete object.
+      // The getEventById method now takes a String id, which is correct for Firebase.
+      Event? updatedEvent = await getEventById(event.id!);
+      if (updatedEvent != null) {
+        return updatedEvent;
+      } else {
+        throw Exception(
+          'Failed to retrieve updated event with ID: ${event.id}',
+        );
+      }
+    } catch (e) {
+      log(name: 'Firebase', 'Error updating event with ID ${event.id}: $e');
+      rethrow;
+    }
   }
 
-  Future<Event> getEventId(int id) async {
-    Database? db = await database;
-    var data =
-        await db!.query(EVENT_TABLE, where: '$EVENT_ID = ?', whereArgs: [id]);
-    return Event.fromJson(data[0]);
+  /// Fetches a single event by its document ID.
+  Future<Event?> getEventById(String id) async {
+    try {
+      DocumentSnapshot snapshot = await _firestore
+          .collection(EVENTS_COLLECTION)
+          .doc(id)
+          .get();
+      if (snapshot.exists) {
+        // Convert document data to Event object, assigning the document ID.
+        return Event.fromJson(snapshot.data() as Map<String, dynamic>)
+          ..id = snapshot.id;
+      } else {
+        log(name: 'Firebase', 'Event not found with ID: $id');
+        return null; // Return null if event doesn't exist
+      }
+    } catch (e) {
+      log(name: 'Firebase', 'Error getting event with ID $id: $e');
+      rethrow;
+    }
   }
 
-  //===================
+  // ==================== BORROWED ITEMS OPERATIONS ====================
 
+  /// Inserts a new borrowed item into Firestore.
+  /// The BorrowedItem object's `id` field will be populated with the Firestore document ID.
   Future<BorrowedItem> insertBorrowedItem(BorrowedItem borrowedItem) async {
-    Database? db = await database;
-    var jsonData = borrowedItem.toCreateMap();
-    var id = await db!.insert(BORROWED_TABLE, jsonData);
-    return await getBorrowedItemId(id);
+    try {
+      // borrowedItem.toJson() should return a Map<String, dynamic>.
+      DocumentReference docRef = await _firestore
+          .collection(BORROWED_ITEMS_COLLECTION)
+          .add(borrowedItem.toJson());
+
+      // Get the document snapshot to retrieve the full data and the Firebase-generated ID.
+      DocumentSnapshot snapshot = await docRef.get();
+
+      if (snapshot.exists) {
+        // Create BorrowedItem object from Firestore data, assigning the document ID.
+        return BorrowedItem.fromJson(snapshot.data() as Map<String, dynamic>)
+          ..id = snapshot.id;
+      } else {
+        throw Exception(
+          'Failed to retrieve inserted borrowed item with ID: ${docRef.id}',
+        );
+      }
+    } catch (e) {
+      log(name: 'Firebase', 'Error inserting borrowed item: $e');
+      rethrow;
+    }
   }
 
-  Future<List<BorrowedItem>> fetchAllBorrowedItems(
-      {String status = 'All'}) async {
-    Database? db = await database;
-    var data = status == 'All'
-        ? await db!.query(BORROWED_TABLE, orderBy: '$BORROWED_ID DESC')
-        : await db!.query(BORROWED_TABLE,
-            where: '$BORROWED_STATUS = ?',
-            whereArgs: [status],
-            orderBy: '$BORROWED_ID DESC');
-    return data.map((e) => BorrowedItem.fromMap(e)).toList();
+  /// Fetches a list of borrowed items from Firestore, optionally filtered by status.
+  Future<List<BorrowedItem>> fetchAllBorrowedItems({
+    String status = 'All',
+  }) async {
+    try {
+      Query query = _firestore.collection(BORROWED_ITEMS_COLLECTION);
+
+      if (status != 'All') {
+        query = query.where(BORROWED_STATUS, isEqualTo: status);
+      }
+      // Order by a timestamp if you have one, or a specific field.
+      // BORROWED_ID is a string in Firebase, so ordering by it might not be numerical.
+      // If you want to order by creation time, consider adding a 'createdAt' timestamp field.
+      query = query.orderBy(
+        BORROWED_TITLE,
+        descending: false,
+      ); // Example: order by title
+
+      QuerySnapshot querySnapshot = await query.get();
+
+      return querySnapshot.docs.map((doc) {
+        // Convert each document to a BorrowedItem object, assigning the document ID.
+        return BorrowedItem.fromJson(doc.data() as Map<String, dynamic>)
+          ..id = doc.id;
+      }).toList();
+    } catch (e) {
+      log(name: 'Firebase', 'Error fetching borrowed items: $e');
+      return [];
+    }
   }
 
-  Future<int> deleteBorrowedItem(int id) async {
-    Database? db = await database;
-    return await db!
-        .delete(BORROWED_TABLE, where: '$BORROWED_ID = ?', whereArgs: [id]);
+  /// Deletes a borrowed item from Firestore by its document ID.
+  Future<void> deleteBorrowedItem(String id) async {
+    try {
+      await _firestore.collection(BORROWED_ITEMS_COLLECTION).doc(id).delete();
+      log(name: 'Firebase', 'Borrowed item deleted with ID: $id');
+    } catch (e) {
+      log(name: 'Firebase', 'Error deleting borrowed item with ID $id: $e');
+      rethrow;
+    }
   }
 
+  /// Updates an existing borrowed item in Firestore.
+  /// The BorrowedItem object must have a non-null `id`.
   Future<BorrowedItem> updateBorrowedItem(BorrowedItem borrowedItem) async {
-    Database? db = await database;
-    var jsonData = borrowedItem.toUpdateMap();
-    var id = await db!.update(BORROWED_TABLE, jsonData,
-        where: '$BORROWED_ID = ?', whereArgs: [borrowedItem.id]);
-    return await getBorrowedItemId(borrowedItem.id);
+    try {
+      if (borrowedItem.id == null || borrowedItem.id!.isEmpty) {
+        throw Exception(
+          'BorrowedItem ID cannot be null or empty for update operation.',
+        );
+      }
+      // borrowedItem.toJson() should return a Map<String, dynamic> with updated data.
+      await _firestore
+          .collection(BORROWED_ITEMS_COLLECTION)
+          .doc(borrowedItem.id!)
+          .update(borrowedItem.toJson());
+
+      // After update, fetch the updated item to return the complete object.
+      // The getBorrowedItemById method now takes a String id, which is correct for Firebase.
+      BorrowedItem? updatedBorrowedItem = await getBorrowedItemById(
+        borrowedItem.id!,
+      );
+      if (updatedBorrowedItem != null) {
+        return updatedBorrowedItem;
+      } else {
+        throw Exception(
+          'Failed to retrieve updated borrowed item with ID: ${borrowedItem.id}',
+        );
+      }
+    } catch (e) {
+      log(
+        name: 'Firebase',
+        'Error updating borrowed item with ID ${borrowedItem.id}: $e',
+      );
+      rethrow;
+    }
   }
 
-  Future<BorrowedItem> getBorrowedItemId(int id) async {
-    Database? db = await database;
-    var data = await db!
-        .query(BORROWED_TABLE, where: '$BORROWED_ID = ?', whereArgs: [id]);
-    return BorrowedItem.fromMap(data[0]);
+  /// Fetches a single borrowed item by its document ID.
+  Future<BorrowedItem?> getBorrowedItemById(String id) async {
+    try {
+      DocumentSnapshot snapshot = await _firestore
+          .collection(BORROWED_ITEMS_COLLECTION)
+          .doc(id)
+          .get();
+      if (snapshot.exists) {
+        // Convert document data to BorrowedItem object, assigning the document ID.
+        return BorrowedItem.fromJson(snapshot.data() as Map<String, dynamic>)
+          ..id = snapshot.id;
+      } else {
+        log(name: 'Firebase', 'Borrowed item not found with ID: $id');
+        return null;
+      }
+    } catch (e) {
+      log(name: 'Firebase', 'Error getting borrowed item with ID $id: $e');
+      rethrow;
+    }
   }
 }

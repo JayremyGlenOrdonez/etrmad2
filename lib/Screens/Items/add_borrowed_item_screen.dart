@@ -1,9 +1,14 @@
+// lib/Screens/Items/add_borrowed_item_screen.dart
+
 import 'dart:developer';
 import 'dart:io';
+import 'dart:math' as math; // <--- CORRECT LOCATION for dart:math import
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:myapp/Database/db_helper.dart';
+// IMPORTANT: Make sure this points to your FirebaseDbHelper
 import 'package:myapp/Styles/custom_colors.dart';
 import 'package:myapp/models/borrowed_item.dart';
 import 'package:myapp/models/item_model.dart';
@@ -22,16 +27,26 @@ class AddBorrowedItemScreen extends StatefulWidget {
 
 class _AddBorrowedItemScreenState extends State<AddBorrowedItemScreen> {
   var controller = Get.put(BorrowController());
-  final List<Items> items = [];
+  final List<Items> items = []; // List to hold items temporarily
   var formKey = GlobalKey<FormState>();
   final titleController = TextEditingController();
-  final itemsController = TextEditingController();
+  final itemsController = TextEditingController(); // For new item name input
 
-  final itemQuantityController = TextEditingController();
+  final itemQuantityController =
+      TextEditingController(); // For new item quantity input
   final dateReturnController = TextEditingController();
 
   DateTime? dateReturn;
-  String status = 'Pending';
+  String status = 'Pending'; // Default status for new borrowed items
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    itemsController.dispose();
+    itemQuantityController.dispose();
+    dateReturnController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,47 +57,89 @@ class _AddBorrowedItemScreenState extends State<AddBorrowedItemScreen> {
         actions: [
           IconButton(
             onPressed: () async {
+              // Validate the main form fields
               if (!formKey.currentState!.validate()) {
                 return;
               }
 
-              if (titleController.text.isNotEmpty &&
-                  dateReturnController.text.isNotEmpty) {
-                var borrow = BorrowedItem(
-                  title: titleController.text,
-                  items: items,
-                  dateReturned: dateReturn!,
-                  status: status,
+              // Ensure title and return date are present.
+              if (titleController.text.isEmpty ||
+                  dateReturnController.text.isEmpty) {
+                await showDialog(
+                  context: context,
+                  builder: (context) => failedDialog(
+                    context,
+                    message: 'Title and Date to return are required.',
+                  ),
                 );
+                return;
+              }
 
-                if (items.isEmpty) {
-                  showDialog(
-                      context: context,
-                      builder: (context) =>
-                          failedDialog(context, message: 'No items added'));
-                  return;
-                }
+              // Check if any items have been added to the list
+              if (items.isEmpty) {
+                await showDialog(
+                  context: context,
+                  builder: (context) => failedDialog(
+                    context,
+                    message: 'Please add at least one item.',
+                  ),
+                );
+                return;
+              }
 
-                var borrowedItem =
-                    await DbHelper.instance.insertBorrowedItem(borrow);
+              // Create the BorrowedItem model
+              var borrow = BorrowedItem(
+                title: titleController.text,
+                items: items,
+                dateReturned: dateReturn!,
+                status: 'Pending', // Default status for new borrowed items
+                // Firebase will automatically assign an ID upon insertion,
+                // so we don't set it here for a new item.
+              );
 
-                log(dateReturn.toString());
+              // Insert the borrowed item into Firebase
+              var borrowedItem = await FirebaseDbHelper.instance
+                  .insertBorrowedItem(borrow);
+
+              // **CRITICAL FIX FOR NOTIFICATION ID & SUCCESS CHECK:**
+              // Check if the returned borrowedItem is not null AND its ID is not null AND not empty.
+              if (borrowedItem != null &&
+                  borrowedItem.id != null &&
+                  borrowedItem.id!.isNotEmpty) {
+                // Generate a random integer ID for the notification.
+                // This is the safest way to get an int ID from a Firebase String ID.
+                final int notificationId = math.Random().nextInt(
+                  2147483647,
+                ); // Max value for a 32-bit signed int
 
                 NotificationHelper.scheduleNotification(
-                  id: borrow.id,
-                  title: 'Borrowed Item',
-                  body: borrow.title,
-                  date: dateReturn!,
+                  id: notificationId, // Use the generated random int ID
+                  title: 'Borrowed Item Reminder', // More specific title
+                  body:
+                      'Time to return "${borrowedItem.title}"!', // Dynamic body
+                  date: borrowedItem.dateReturned,
                 );
 
-                if (borrowedItem.id != 0) {
-                  await showDialog(
-                      context: context,
-                      builder: (context) => successDialog(context,
-                          message: 'Borrowed item added successfully'));
-                  Navigator.pop(context);
-                  controller.refresh();
-                }
+                await showDialog(
+                  context: context,
+                  builder: (context) => successDialog(
+                    context,
+                    message: 'Borrowed item added successfully!',
+                  ),
+                );
+                // Correctly pop the AddBorrowedItemScreen and refresh the list
+                Navigator.pop(context); // Pop AddBorrowedItemScreen to go back
+                controller.refresh(); // Refresh the list on the previous screen
+              } else {
+                // If the borrowedItem or its ID is null/empty after insertion, show a failed message.
+                await showDialog(
+                  context: context,
+                  builder: (context) => failedDialog(
+                    context,
+                    message:
+                        'Failed to add borrowed item to Firebase. Please try again.',
+                  ),
+                );
               }
             },
             icon: const Icon(Icons.save),
@@ -140,6 +197,7 @@ class _AddBorrowedItemScreenState extends State<AddBorrowedItemScreen> {
                             label: 'Quantity',
                             isNumber: true,
                             controller: itemQuantityController,
+                            // Ensure numeric keyboard
                           ),
                         ),
                       ],
@@ -149,67 +207,93 @@ class _AddBorrowedItemScreenState extends State<AddBorrowedItemScreen> {
                       alignment: Alignment.centerRight,
                       child: MaterialButton(
                         onPressed: () async {
+                          // Basic validation for item addition
                           if (itemsController.text.isEmpty ||
                               itemQuantityController.text.isEmpty) {
                             await showDialog(
-                                context: context,
-                                builder: (builder) {
-                                  return failedDialog(context,
-                                      message: 'All fields are required');
-                                });
+                              context: context,
+                              builder: (builder) {
+                                return failedDialog(
+                                  context,
+                                  message:
+                                      'Item name and Quantity are required',
+                                );
+                              },
+                            );
                             return;
                           }
 
                           if (!GetUtils.isNumericOnly(
-                              itemQuantityController.text)) {
+                            itemQuantityController.text.trim(),
+                          )) {
                             await showDialog(
-                                context: context,
-                                builder: (builder) {
-                                  return failedDialog(context,
-                                      message: 'Quantity must be a number');
-                                });
-
+                              context: context,
+                              builder: (builder) {
+                                return failedDialog(
+                                  context,
+                                  message: 'Quantity must be a valid number',
+                                );
+                              },
+                            );
                             return;
                           }
+
+                          // Add the new item to the local list
                           setState(() {
-                            items.add(Items(
-                              name: itemsController.text,
-                              quantity:
-                                  int.parse(itemQuantityController.text.trim()),
-                            ));
+                            items.add(
+                              Items(
+                                name: itemsController.text.trim(),
+                                quantity: int.parse(
+                                  itemQuantityController.text.trim(),
+                                ),
+                                isReturned:
+                                    false, // Newly added items are not returned yet
+                              ),
+                            );
                             itemsController.clear();
                             itemQuantityController.clear();
                           });
                         },
                         color: primaryColor,
-                        child: const Text('Add',
-                            style: TextStyle(color: Colors.white)),
+                        child: const Text(
+                          'Add',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ],
                 ),
+                // Display the list of added items
                 ListView.builder(
                   itemCount: items.length,
-                  shrinkWrap: true,
+                  shrinkWrap:
+                      true, // Use shrinkWrap when ListView is inside another scrollable widget
+                  physics:
+                      const NeverScrollableScrollPhysics(), // Disable internal scrolling
                   itemBuilder: (context, index) {
                     return Card(
                       elevation: 2,
+                      margin: const EdgeInsets.symmetric(
+                        vertical: 4.0,
+                      ), // Add vertical margin for separation
                       child: ListTile(
-                          title: Text(items[index].name ?? 'N/A'),
-                          subtitle: Text('${items[index].quantity} Items'),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.red,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                snackBar(context,
-                                    message: '${items[index].name} removed');
-                                items.removeAt(index);
-                              });
-                            },
-                          )),
+                        title: Text(
+                          items[index].name,
+                        ), // 'name' is non-nullable now
+                        subtitle: Text('${items[index].quantity} Items'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () {
+                            setState(() {
+                              snackBar(
+                                context,
+                                message: '${items[index].name} removed',
+                              );
+                              items.removeAt(index);
+                            });
+                          },
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -221,31 +305,32 @@ class _AddBorrowedItemScreenState extends State<AddBorrowedItemScreen> {
     );
   }
 
+  // Helper method to pick date and time
   void pickDateTime(BuildContext context) async {
     final date = await pickDate(context, initialDate: dateReturn);
     if (date == null) return;
 
-    final time = await pickTime(context,
-        initialTime: dateReturn == null
-            ? null
-            : TimeOfDay(hour: dateReturn!.hour, minute: dateReturn!.minute));
+    final time = await pickTime(
+      context,
+      initialTime: dateReturn == null
+          ? null
+          : TimeOfDay(hour: dateReturn!.hour, minute: dateReturn!.minute),
+    );
 
-    //
     if (time != null) {
       setState(() {
-        dateReturn =
-            DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        dateReturn = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        );
 
         log(dateReturn.toString());
-        // Format date and time
-        final formattedDate = DateFormat('MMMM dd, yyyy')
-            .format(dateReturn!); // Example: November 5, 2023
-
-        //
-        final formattedTime =
-            DateFormat('h:mm a').format(dateReturn!); // Example: 12:00 AM
-
-        // Combine formatted date and time
+        // Format date and time for display in the text field
+        final formattedDate = DateFormat('MMMM dd,yyyy').format(dateReturn!);
+        final formattedTime = DateFormat('h:mm a').format(dateReturn!);
         dateReturnController.text = '$formattedDate | $formattedTime';
       });
     }

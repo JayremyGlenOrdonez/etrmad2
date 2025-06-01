@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:myapp/Screens/Events/event_view.dart';
@@ -16,41 +15,34 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     var controller = Get.put(EventController());
 
-    //
     return Obx(() {
-      if (EVENTLIST.isEmpty) {
+      // Check if data is still loading
+      if (controller.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      // If not loading and no events are found
+      else if (EVENTLIST.isEmpty) {
         return const Center(
-            child: Text(
-          'No events found',
-          style: TextStyle(
-            fontSize: 14,
-            color: labelColor,
-            fontStyle: FontStyle.italic,
+          child: Text(
+            'No events found',
+            style: TextStyle(
+              fontSize: 14,
+              color: labelColor,
+              fontStyle: FontStyle.italic,
+            ),
           ),
-        ));
-      } else {
+        );
+      }
+      // If events are loaded
+      else {
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Reminders Section
-              // sectionTitle(
-              //   context,
-              //   'Reminders',
-              //   icon: Icons.alarm,
-              //   color: Colors.deepOrange,
-              // ),
-              // gap(height: 10.0),
-              // _buildRemindersList(),
-
-              // gap(height: 20.0),
-              // divider(),
-              // gap(height: 20.0),
-
               // Current Events Section
-
               if (CURRENT_EVENTLIST.isNotEmpty)
-                Wrap(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     sectionTitle(
                       context,
@@ -62,33 +54,35 @@ class HomeScreen extends StatelessWidget {
                     ...CURRENT_EVENTLIST.value.map((event) {
                       return InkWell(
                         onTap: () {
-                          gotoScreen(context,
-                              screen: EventViewScreen(event: event));
+                          gotoScreen(
+                            context,
+                            screen: EventViewScreen(event: event),
+                          );
                         },
-                        child: eventCard(
-                          context,
-                          title: event.name,
-                          status: event.status,
-                          items: event.items.length,
-                          image: event.image,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: eventCard(
+                            context,
+                            title: event.name,
+                            status: event.status,
+                            items: event.items.length,
+                            image: event.image,
+                          ),
                         ),
                       );
-                    }),
+                    }).toList(),
                   ],
                 ),
 
+              // Divider between Current and Upcoming only if both exist
               if (CURRENT_EVENTLIST.isNotEmpty && UPCOMING_EVENTLIST.isNotEmpty)
-                Wrap(
-                  children: [
-                    gap(height: 20.0),
-                    divider(),
-                    gap(height: 20.0),
-                  ],
+                Column(
+                  children: [gap(height: 20.0), divider(), gap(height: 20.0)],
                 ),
               // Upcoming Events Section
-
               if (UPCOMING_EVENTLIST.isNotEmpty)
-                Wrap(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     sectionTitle(
                       context,
@@ -100,18 +94,23 @@ class HomeScreen extends StatelessWidget {
                     ...UPCOMING_EVENTLIST.value.map((event) {
                       return InkWell(
                         onTap: () {
-                          gotoScreen(context,
-                              screen: EventViewScreen(event: event));
+                          gotoScreen(
+                            context,
+                            screen: EventViewScreen(event: event),
+                          );
                         },
-                        child: eventCard(
-                          context,
-                          title: event.name,
-                          status: event.status,
-                          items: event.items.length,
-                          image: event.image,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: eventCard(
+                            context,
+                            title: event.name,
+                            status: event.status,
+                            items: event.items.length,
+                            image: event.image,
+                          ),
                         ),
                       );
-                    }),
+                    }).toList(),
                   ],
                 ),
             ],
@@ -121,6 +120,12 @@ class HomeScreen extends StatelessWidget {
     });
   }
 
+  // The _buildRemindersList was commented out because it contained static content.
+  // If you wish to implement dynamic reminders based on actual event data,
+  // this section would need significant logic to pull reminder information from events
+  // and display it, possibly scheduling notifications via notification_helper.dart.
+  // For now, it's best to leave it commented out if it's not being actively used
+  // with dynamic data, to avoid confusing static vs. dynamic content.
   Widget _buildRemindersList() {
     return Column(
       mainAxisSize: MainAxisSize.min,

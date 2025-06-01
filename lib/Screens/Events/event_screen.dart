@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:myapp/Database/db_helper.dart';
+// Change this import to point to your new FirebaseDbHelper
 import 'package:myapp/Screens/Events/create_event_screen.dart';
 import 'package:myapp/Screens/Events/event_view.dart';
 import 'package:myapp/constant/global.dart';
@@ -12,7 +13,7 @@ import 'package:myapp/utils/custom_tools.dart';
 
 import '../../Styles/custom_colors.dart';
 import '../../services/notification_helper.dart';
-import '../../utils/widgets.dart'; // Ensure this import is added for MenuScreen
+import '../../utils/widgets.dart';
 
 class EventScreen extends StatefulWidget {
   const EventScreen({super.key});
@@ -23,8 +24,6 @@ class EventScreen extends StatefulWidget {
 
 class _EventScreenState extends State<EventScreen> {
   var eventController = Get.put(EventController());
-
-  //
 
   String status = 'All';
 
@@ -44,11 +43,14 @@ class _EventScreenState extends State<EventScreen> {
                 },
               ),
               gap(height: 16.0),
-              eventsDropDownButton(context, onSelected: (value) {
-                setState(() {
-                  status = value!;
-                });
-              }),
+              eventsDropDownButton(
+                context,
+                onSelected: (value) {
+                  setState(() {
+                    status = value!;
+                  });
+                },
+              ),
             ],
           ),
           gap(height: 10.0),
@@ -98,7 +100,8 @@ class _EventScreenState extends State<EventScreen> {
       shrinkWrap: true,
       itemBuilder: (context, index) {
         return Dismissible(
-          key: Key(events[index].id.toString()),
+          // Use event.id (String) as the key for Dismissible
+          key: Key(events[index].id!), // <--- UPDATED KEY
           direction: DismissDirection.endToStart,
           confirmDismiss: (direction) async {
             if (direction == DismissDirection.endToStart) {
@@ -107,10 +110,14 @@ class _EventScreenState extends State<EventScreen> {
                 builder: (context) => deleteEventModal(
                   context,
                   onDelete: () async {
-                    await DbHelper.instance.deleteEvent(events[index].id);
+                    // Use FirebaseDbHelper.instance to delete the event
+                    await FirebaseDbHelper.instance.deleteEvent(
+                      events[index].id!,
+                    ); // <--- UPDATED INSTANCE AND ID
                     setState(() {
                       Navigator.of(context).pop();
-                      eventController.refresh();
+                      eventController
+                          .refresh(); // Refresh the list after deletion
                     });
                   },
                 ),
@@ -122,10 +129,7 @@ class _EventScreenState extends State<EventScreen> {
             padding: const EdgeInsets.only(right: 16.0),
             alignment: Alignment.centerRight,
             color: Colors.red,
-            child: const Icon(
-              Icons.delete,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.delete, color: Colors.white),
           ),
           child: InkWell(
             onTap: () {
@@ -140,6 +144,7 @@ class _EventScreenState extends State<EventScreen> {
               status: events[index].status,
               image: events[index].image,
               items: events[index].items.length,
+              // Remove location and weather-related fields
             ),
           ),
         );

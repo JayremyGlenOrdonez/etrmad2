@@ -1,5 +1,3 @@
-
-import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -25,39 +23,39 @@ class _ItemViewScreenState extends State<ItemViewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final items = widget.borrowedItem;
-    final formattedDate = DateFormat('MMMM d, yyyy').format(items.dateReturned);
+    final borrowedItem = widget.borrowedItem;
+    final formattedDate = DateFormat(
+      'MMMM d, yyyy',
+    ).format(borrowedItem.dateReturned);
 
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Item Details'),
+        title: const Text('Borrowed Item Details'),
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Event Details
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Event Name
                   Text(
-                    items.title ?? 'No title',
+                    borrowedItem.title,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-
                   const SizedBox(height: 8),
-
-                  // Event Date & Time
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today,
-                          color: Colors.blueAccent, size: 20),
+                      const Icon(
+                        Icons.calendar_today,
+                        color: Colors.blueAccent,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Return at [$formattedDate]',
@@ -66,32 +64,27 @@ class _ItemViewScreenState extends State<ItemViewScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // Items
-                  if (items.items.isNotEmpty) ...[
+                  if (borrowedItem.items.isNotEmpty) ...[
                     Text(
                       'Items',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    ...items.items.map(
+                    ...borrowedItem.items.map(
                       (item) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: Text(
-                          '- ${item.name ?? 'N/A'} (${item.quantity ?? 'N/A'} items) ${item.isReturned ? '[Retrieved]' : '[Not retrieved]'}',
+                          '- ${item.name} (${item.quantity} items) ${item.isReturned ? '[Retrieved]' : '[Not retrieved]'}',
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ),
                     ),
                   ],
-
                   gap(height: 16.0),
-                  //
                   Row(
                     children: [
-                      //
                       MaterialButton(
                         textColor: Colors.white,
                         color: Colors.red,
@@ -101,13 +94,11 @@ class _ItemViewScreenState extends State<ItemViewScreen> {
                             builder: (context) => deleteEventModal(
                               context,
                               onDelete: () async {
-                                await DbHelper.instance
-                                    .deleteBorrowedItem(widget.borrowedItem.id);
-                                setState(() {
-                                  Navigator.of(context).pop();
-                                  Navigator.of(context).pop();
-                                  controller.refresh();
-                                });
+                                await FirebaseDbHelper.instance
+                                    .deleteBorrowedItem(borrowedItem.id!);
+                                Navigator.of(context).pop();
+                                Navigator.of(context).pop();
+                                controller.refresh();
                               },
                             ),
                           );
@@ -116,37 +107,43 @@ class _ItemViewScreenState extends State<ItemViewScreen> {
                       ),
                       gap(width: 16.0),
                       Visibility(
-                        visible: (widget.borrowedItem.status == 'Pending'),
+                        visible: (borrowedItem.status == 'Pending'),
                         child: MaterialButton(
                           textColor: Colors.white,
                           color: primaryColor,
                           onPressed: () {
-                            gotoScreenReplacement(context,
-                                screen: EditBorrowedItemScreen(
-                                  borrowedItem: widget.borrowedItem,
-                                ));
+                            gotoScreenReplacement(
+                              context,
+                              screen: EditBorrowedItemScreen(
+                                borrowedItem: borrowedItem,
+                              ),
+                            );
                           },
                           child: const Text('Edit'),
                         ),
                       ),
-
                       gap(width: 16.0),
-                      //
                       Visibility(
-                        visible: widget.borrowedItem.status == 'Pending',
+                        visible: borrowedItem.status == 'Pending',
                         child: MaterialButton(
                           textColor: Colors.white,
                           color: Colors.orange,
-                          onPressed: () {
-                            gotoScreenReplacement(context,
-                                screen: BorrowItemRetrieveScreen(
-                                    borrowedItem: widget.borrowedItem));
+                          onPressed: () async {
+                            for (var item in borrowedItem.items) {
+                              item.isReturned = true;
+                            }
+                            borrowedItem.status = 'Returned';
+                            await FirebaseDbHelper.instance.updateBorrowedItem(
+                              borrowedItem,
+                            );
+                            controller.refresh();
+                            Navigator.of(context).pop();
                           },
                           child: const Text('Retrieve Items'),
                         ),
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),

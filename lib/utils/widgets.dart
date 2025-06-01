@@ -6,8 +6,12 @@ import 'package:myapp/utils/custom_tools.dart';
 import '../Screens/Events/create_event_screen.dart';
 import '../Styles/custom_colors.dart';
 
-Widget sectionTitle(BuildContext context, String title,
-    {required IconData icon, required Color color}) {
+Widget sectionTitle(
+  BuildContext context,
+  String title, {
+  required IconData icon,
+  required Color color,
+}) {
   return Row(
     children: [
       Icon(icon, color: color),
@@ -28,10 +32,7 @@ Widget sectionTitle(BuildContext context, String title,
 Widget createEventButton(BuildContext context) {
   return Container(
     decoration: BoxDecoration(
-      gradient: const LinearGradient(colors: [
-        tertiaryColor,
-        secondaryColor,
-      ]),
+      gradient: const LinearGradient(colors: [tertiaryColor, secondaryColor]),
       borderRadius: BorderRadius.circular(8.0),
     ),
     padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 12.0),
@@ -45,9 +46,10 @@ Widget createEventButton(BuildContext context) {
             Text(
               'Add Event',
               style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             SizedBox(height: 4.0),
             Text(
@@ -63,23 +65,14 @@ Widget createEventButton(BuildContext context) {
             padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  primaryColor,
-                  secondaryColor,
-                ],
+                colors: [primaryColor, secondaryColor],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
               ),
               borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(
-                color: Colors.white,
-                width: 0.5,
-              ),
+              border: Border.all(color: Colors.white, width: 0.5),
             ),
-            child: const Icon(
-              Icons.arrow_forward,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.arrow_forward, color: Colors.white),
           ),
         ),
       ],
@@ -117,21 +110,13 @@ Widget eventCard(
         child: image != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(6.0),
-                child: Image.file(
-                  image,
-                  fit: BoxFit.cover,
-                ),
+                child: Image.file(image, fit: BoxFit.cover),
               )
-            : const Center(
-                child: Icon(Icons.event, color: labelColor),
-              ),
+            : const Center(child: Icon(Icons.event, color: labelColor)),
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
       ),
       subtitle: Text(
         '$items items',
@@ -150,8 +135,8 @@ Widget eventCard(
             color: status == 'Upcoming'
                 ? Colors.orange
                 : status == 'Ended'
-                    ? labelColor
-                    : Colors.green,
+                ? labelColor
+                : Colors.green,
             width: 1.5,
           ),
         ),
@@ -161,8 +146,8 @@ Widget eventCard(
             color: status == 'Upcoming'
                 ? Colors.orange
                 : status == 'Ended'
-                    ? labelColor
-                    : Colors.green,
+                ? labelColor
+                : Colors.green,
             fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
@@ -191,21 +176,13 @@ Widget borrowedCard(
         child: image != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(6.0),
-                child: Image.file(
-                  image,
-                  fit: BoxFit.cover,
-                ),
+                child: Image.file(image, fit: BoxFit.cover),
               )
-            : const Center(
-                child: Icon(Icons.list_alt, color: labelColor),
-              ),
+            : const Center(child: Icon(Icons.list_alt, color: labelColor)),
       ),
       title: Text(
         name,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
       ),
       subtitle: Text(
         '$quantity items',
@@ -244,12 +221,7 @@ Widget eventsDropDownButton(context, {Function(String?)? onSelected}) {
     mainAxisSize: MainAxisSize.max,
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      sectionTitle(
-        context,
-        'Events',
-        icon: Icons.event,
-        color: Colors.blue,
-      ),
+      sectionTitle(context, 'Events', icon: Icons.event, color: Colors.blue),
       DropdownMenu(
         onSelected: onSelected,
         width: 140,
@@ -259,10 +231,7 @@ Widget eventsDropDownButton(context, {Function(String?)? onSelected}) {
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
-        trailingIcon: const Icon(
-          Icons.arrow_drop_down,
-          color: labelColor,
-        ),
+        trailingIcon: const Icon(Icons.arrow_drop_down, color: labelColor),
         menuStyle: const MenuStyle(
           fixedSize: WidgetStatePropertyAll(Size(140, 200)),
         ),
@@ -271,28 +240,14 @@ Widget eventsDropDownButton(context, {Function(String?)? onSelected}) {
           color: Colors.grey,
         ),
         inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderSide: BorderSide.none,
-          ),
+          border: OutlineInputBorder(borderSide: BorderSide.none),
         ),
         initialSelection: 'All',
         dropdownMenuEntries: const [
-          DropdownMenuEntry(
-            label: 'All',
-            value: 'All',
-          ),
-          DropdownMenuEntry(
-            label: 'Upcoming',
-            value: 'Upcoming',
-          ),
-          DropdownMenuEntry(
-            label: 'Current',
-            value: 'Current',
-          ),
-          DropdownMenuEntry(
-            label: 'Ended',
-            value: 'Ended',
-          ),
+          DropdownMenuEntry(label: 'All', value: 'All'),
+          DropdownMenuEntry(label: 'Upcoming', value: 'Upcoming'),
+          DropdownMenuEntry(label: 'Current', value: 'Current'),
+          DropdownMenuEntry(label: 'Ended', value: 'Ended'),
         ],
       ),
     ],
@@ -319,10 +274,7 @@ Widget borrowedItemsDropDownButton(context, {Function(String?)? onSelected}) {
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
-        trailingIcon: const Icon(
-          Icons.arrow_drop_down,
-          color: labelColor,
-        ),
+        trailingIcon: const Icon(Icons.arrow_drop_down, color: labelColor),
         menuStyle: const MenuStyle(
           fixedSize: WidgetStatePropertyAll(Size(140, 150)),
         ),
@@ -331,24 +283,13 @@ Widget borrowedItemsDropDownButton(context, {Function(String?)? onSelected}) {
           color: Colors.grey,
         ),
         inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderSide: BorderSide.none,
-          ),
+          border: OutlineInputBorder(borderSide: BorderSide.none),
         ),
         initialSelection: 'All',
         dropdownMenuEntries: const [
-          DropdownMenuEntry(
-            label: 'All',
-            value: 'All',
-          ),
-          DropdownMenuEntry(
-            label: 'Pending',
-            value: 'Pending',
-          ),
-          DropdownMenuEntry(
-            label: 'Returned',
-            value: 'Returned',
-          ),
+          DropdownMenuEntry(label: 'All', value: 'All'),
+          DropdownMenuEntry(label: 'Pending', value: 'Pending'),
+          DropdownMenuEntry(label: 'Returned', value: 'Returned'),
         ],
       ),
     ],
@@ -370,20 +311,14 @@ Widget addEventButtonIcon(BuildContext context, {Function()? onTap}) {
           child: Container(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  primaryColor,
-                  secondaryColor,
-                ],
+                colors: [primaryColor, secondaryColor],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(8.0),
             ),
             padding: const EdgeInsets.all(8.0),
-            child: const Icon(
-              Icons.add,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.add, color: Colors.white),
           ),
         ),
         gap(width: 16.0),
@@ -400,10 +335,7 @@ Widget addEventButtonIcon(BuildContext context, {Function()? onTap}) {
             ),
             Text(
               'Be ready for upcoming events',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ],
         ),
@@ -427,20 +359,14 @@ Widget addBorrowedButtonIcon(BuildContext context, {Function()? onTap}) {
           child: Container(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  primaryColor,
-                  secondaryColor,
-                ],
+                colors: [primaryColor, secondaryColor],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(8.0),
             ),
             padding: const EdgeInsets.all(8.0),
-            child: const Icon(
-              Icons.add,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.add, color: Colors.white),
           ),
         ),
         gap(width: 16.0),
@@ -457,10 +383,7 @@ Widget addBorrowedButtonIcon(BuildContext context, {Function()? onTap}) {
             ),
             Text(
               'Be aware of all your items',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ],
         ),
@@ -485,15 +408,14 @@ Widget dateTimeFormField(
     controller: controller,
     decoration: InputDecoration(
       hintText: label,
-      hintStyle: const TextStyle(
-        fontSize: 14,
-        color: labelColor,
-      ),
+      hintStyle: const TextStyle(fontSize: 14, color: labelColor),
       border: const OutlineInputBorder(),
       suffixIcon: InkWell(
         onTap: readOnly ? null : onTap,
-        child: Icon(Icons.calendar_month,
-            color: readOnly ? labelColor : Colors.black),
+        child: Icon(
+          Icons.calendar_month,
+          color: readOnly ? labelColor : Colors.black,
+        ),
       ),
     ),
   );
@@ -502,24 +424,22 @@ Widget dateTimeFormField(
 // Text Form Field
 Widget textFormField({
   required String label,
-  int maxLine = 1,
-  TextEditingController? controller,
-  bool isNumber = false,
+  required TextEditingController controller,
   String? Function(String?)? validator,
+  bool isNumber = false,
+  int maxLine = 1,
+  void Function(String)? onChanged, // Add this parameter
 }) {
   return TextFormField(
-    validator: validator,
     controller: controller,
-    maxLines: maxLine,
+    validator: validator,
     keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+    maxLines: maxLine,
     decoration: InputDecoration(
-      hintText: label,
-      hintStyle: const TextStyle(
-        fontSize: 14,
-        color: labelColor,
-      ),
+      labelText: label,
       border: const OutlineInputBorder(),
     ),
+    onChanged: onChanged, // Pass the onChanged callback to the TextFormField
   );
 }
 

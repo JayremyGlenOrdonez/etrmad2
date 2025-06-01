@@ -1,58 +1,39 @@
-import 'dart:convert';
-import 'dart:developer';
-import 'package:myapp/Database/db_helper.dart';
 
 class Items {
-  int id = 0;
-  String? name;
-  int quantity = 0;
-  String? description;
-  bool isReturned = false;
+  // Removed 'id' because items are now embedded directly in Event/BorrowedItem documents,
+  // and Firebase doesn't assign separate IDs to sub-objects within a document's array.
+  // If you *did* need a unique ID for an item within the list, you'd generate it yourself (e.g., UUID).
+
+  late String name;
+  late int quantity;
+  // Removed 'description' field completely as it's not used in your UI or logic.
+  late bool isReturned;
 
   Items({
-    this.id = 0,
-    this.name,
-    this.quantity = 0,
-    this.description,
-    this.isReturned = false,
+    required this.name, // Made 'name' required as it's a core identifier for an item.
+    required this.quantity, // Made 'quantity' required.
+    this.isReturned =
+        false, // Default to false if not provided during object creation.
   });
 
-  static String toJsonOfMap(List<Items> item) {
-    List<Map<String, dynamic>> data = [];
-    for (var i = 0; i < item.length; i++) {
-      data.add(item[i].toJson());
-    }
-    return jsonEncode(data);
+  // Factory constructor for creating an Items object from a Map (e.g., from Firestore array)
+  factory Items.fromJson(Map<String, dynamic> json) {
+    return Items(
+      // Ensure we're casting safely and providing fallbacks in case data is missing in Firestore
+      name: json['name'] as String? ?? '', // Use null-aware operator for safety
+      quantity: json['quantity'] as int? ?? 0,
+      isReturned: json['isReturned'] as bool? ?? false,
+    );
   }
 
-  static List<Items> fromListOfMap(List<dynamic> item) {
-    List<Items> data = [];
-    for (var i = 0; i < item.length; i++) {
-      data.add(Items.fromJson(item[i]));
-    }
-
-    return data;
-  }
-
+  // Convert an Items object to a Map<String, dynamic> for embedding in Firestore documents
   Map<String, dynamic> toJson() {
-    DbHelper dbHelper = DbHelper.instance;
-    Map<String, dynamic> data = {};
-
-    data[dbHelper.ITEM_ID] = id;
-    data[dbHelper.ITEM_NAME] = name;
-    data[dbHelper.ITEM_QUANTITY] = quantity;
-    data[dbHelper.ITEM_DESCRIPTION] = description;
-    data[dbHelper.ITEM_IS_RETURNED] = isReturned ? 1 : 0;
-
-    return data;
+    return {'name': name, 'quantity': quantity, 'isReturned': isReturned};
   }
 
-  Items.fromJson(Map<String, dynamic> json) {
-    DbHelper dbHelper = DbHelper.instance;
-    id = json[dbHelper.ITEM_ID] ?? 0;
-    name = json[dbHelper.ITEM_NAME] ?? '';
-    quantity = json[dbHelper.ITEM_QUANTITY] ?? 0;
-    description = json[dbHelper.ITEM_DESCRIPTION] ?? '';
-    isReturned = json[dbHelper.ITEM_IS_RETURNED] == 1 ? true : false;
-  }
+  // Removed these static methods as they are not needed when items are embedded
+  // directly as a List<Map<String, dynamic>> in Firestore documents.
+  // Firestore handles the list of maps natively.
+  // static String toJsonOfList(List<Items> items) { /* ... */ }
+  // static List<Items> fromListOfMap(List<dynamic> jsonList) { /* ... */ }
 }

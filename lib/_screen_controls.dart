@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
 
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -14,8 +13,7 @@ import 'package:myapp/Styles/fonts.dart';
 import 'package:myapp/Styles/titles.dart';
 import 'package:myapp/controller/event_controller.dart';
 import 'package:myapp/models/event_model.dart';
-
-
+import 'package:myapp/services/notification_helper.dart';
 
 class ScreenControls extends StatefulWidget {
   const ScreenControls({super.key});
@@ -54,7 +52,7 @@ class _ScreenControlsState extends State<ScreenControls> {
   //
   // DRAWER
 
-//
+  //
   // APP BAR
   PreferredSizeWidget appBar() {
     return AppBar(
@@ -68,10 +66,7 @@ class _ScreenControlsState extends State<ScreenControls> {
           return const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              primaryColor,
-              secondaryColor,
-            ],
+            colors: [primaryColor, secondaryColor],
           ).createShader(bounds);
         },
 
@@ -114,14 +109,8 @@ class _ScreenControlsState extends State<ScreenControls> {
       selectedLabelStyle: const TextStyle(color: Colors.indigo),
       unselectedLabelStyle: const TextStyle(color: Colors.black),
       items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.event),
-          label: 'Event',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+        BottomNavigationBarItem(icon: Icon(Icons.event), label: 'Event'),
         BottomNavigationBarItem(
           icon: Icon(Icons.checklist),
           label: 'Borrowed Items',
@@ -130,55 +119,49 @@ class _ScreenControlsState extends State<ScreenControls> {
     );
   }
 
-//=============================
+  //=============================
   Timer? timer;
 
   void startTimer() {
-    // Start the timer and store the reference
     timer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      print('Running timer...');
-      List<Event> events =
-          await DbHelper.instance.fetchAllEvents(status: 'All');
+      log('Running timer...');
+      List<Event> events = await FirebaseDbHelper.instance.fetchAllEvents(
+        status: 'All',
+      );
 
       for (var event in events) {
-        // Create full event DateTime from date and time
-        DateTime fullEventDateTime = DateTime(
-            event.dateTime.year,
-            event.dateTime.month,
-            event.dateTime.day,
-            event.dateTime.hour,
-            event.dateTime.minute);
+        DateTime now = DateTime.now();
+        DateTime eventDateTime = event.dateTime;
 
-        // Get the current time, ignoring milliseconds
-        var formattedDateTime =
-            DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
-        DateTime now = DateTime.parse(formattedDateTime);
-
-        // Print for debugging
-        // print("Full Event DateTime: $fullEventDateTime");
-        // print("Datetime now: $now");
-
-        // Compare the times without milliseconds
-        if (fullEventDateTime.isAtSameMomentAs(now) &&
-            (event.status != 'Current' && event.status != 'Ended')) {
-          event.status = 'Current';
-          DbHelper.instance.updateEvent(event);
-          log('Event ${event.name} is now Current');
-          controller.refresh();
-        }
-
-        if (fullEventDateTime.isAfter(now.add(const Duration(days: 1))) &&
-            event.status != 'Ended') {
-          event.status = 'Ended';
-          DbHelper.instance.updateEvent(event);
-          log('Event ${event.name} is now Ended');
-          controller.refresh();
+        // Determine the status of the event
+        if (eventDateTime.isAfter(now)) {
+          if (event.status != 'Upcoming') {
+            event.status = 'Upcoming';
+            await FirebaseDbHelper.instance.updateEvent(event);
+            log('Event ${event.name} is now Upcoming');
+          }
+        } else if (eventDateTime.isBefore(now) &&
+            now.isBefore(eventDateTime.add(const Duration(minutes: 1)))) {
+          if (event.status != 'Current') {
+            event.status = 'Current';
+            await FirebaseDbHelper.instance.updateEvent(event);
+            log('Event ${event.name} is now Current');
+          }
+        } else if (eventDateTime
+            .add(const Duration(minutes: 1))
+            .isBefore(now)) {
+          if (event.status != 'Ended') {
+            event.status = 'Ended';
+            await FirebaseDbHelper.instance.updateEvent(event);
+            log('Event ${event.name} is now Ended');
+          }
         }
       }
+
+      controller.refresh();
     });
   }
 
-// To cancel the timer, you can call:
   void cancelTimer() {
     if (timer != null) {
       timer!.cancel();

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:myapp/Database/db_helper.dart';
@@ -9,10 +8,9 @@ import 'package:myapp/constant/global.dart';
 import 'package:myapp/controller/borrow_controller.dart';
 import 'package:myapp/models/borrowed_item.dart';
 import 'package:myapp/utils/custom_tools.dart';
-
 import '../../Styles/custom_colors.dart';
 import '../../services/notification_helper.dart';
-import '../../utils/widgets.dart'; // Ensure this import is added for MenuScreen
+import '../../utils/widgets.dart';
 
 class BorrowedItemScreen extends StatefulWidget {
   const BorrowedItemScreen({super.key});
@@ -22,14 +20,11 @@ class BorrowedItemScreen extends StatefulWidget {
 }
 
 class _BorrowedItemScreenState extends State<BorrowedItemScreen> {
-  //
   var controller = Get.put(BorrowController());
-
   String status = 'All';
 
   @override
   Widget build(BuildContext context) {
-    //
     Size size = MediaQuery.of(context).size;
     return SingleChildScrollView(
       child: Column(
@@ -44,11 +39,14 @@ class _BorrowedItemScreenState extends State<BorrowedItemScreen> {
                 },
               ),
               gap(height: 16.0),
-              borrowedItemsDropDownButton(context, onSelected: (value) {
-                setState(() {
-                  status = value!;
-                });
-              }),
+              borrowedItemsDropDownButton(
+                context,
+                onSelected: (value) {
+                  setState(() {
+                    status = value!;
+                  });
+                },
+              ),
             ],
           ),
           gap(height: 10.0),
@@ -68,7 +66,7 @@ class _BorrowedItemScreenState extends State<BorrowedItemScreen> {
                 height: size.height * 0.54,
                 child: const Center(
                   child: Text(
-                    'No item found',
+                    'No borrowed items found',
                     style: TextStyle(
                       fontSize: 14,
                       color: labelColor,
@@ -96,7 +94,7 @@ class _BorrowedItemScreenState extends State<BorrowedItemScreen> {
       shrinkWrap: true,
       itemBuilder: (context, index) {
         return Dismissible(
-          key: Key(items[index].id.toString()),
+          key: Key(items[index].id!),
           direction: DismissDirection.endToStart,
           confirmDismiss: (direction) async {
             if (direction == DismissDirection.endToStart) {
@@ -105,7 +103,9 @@ class _BorrowedItemScreenState extends State<BorrowedItemScreen> {
                 builder: (context) => deleteEventModal(
                   context,
                   onDelete: () async {
-                    await DbHelper.instance.deleteBorrowedItem(items[index].id);
+                    await FirebaseDbHelper.instance.deleteBorrowedItem(
+                      items[index].id!,
+                    );
                     setState(() {
                       Navigator.of(context).pop();
                       controller.refresh();
@@ -120,10 +120,7 @@ class _BorrowedItemScreenState extends State<BorrowedItemScreen> {
             padding: const EdgeInsets.only(right: 16.0),
             alignment: Alignment.centerRight,
             color: Colors.red,
-            child: const Icon(
-              Icons.delete,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.delete, color: Colors.white),
           ),
           child: InkWell(
             onTap: () {
